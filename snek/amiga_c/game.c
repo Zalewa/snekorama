@@ -18,6 +18,7 @@ struct _SnekcGame
 	Entity *player_head;
 	int player_length;
 	Vec2 player_next_velocity;
+	Vec2 prev_tail_position;
 };
 
 Entity *entity_new()
@@ -129,11 +130,10 @@ void move_player(SnekcGame *game, Vec2 newpos)
 	}
 	if (actual_player_length > game->player_length)
 	{
+		game->prev_tail_position = tail->position;
 		list_remove(tail);
 		free(tail);
 	}
-	/* XXX */
-	fprintf(stderr, "%dx%d\n", newpos.x, newpos.y);
 
 	/* Play step sound. */
 	snekc_audio_play(g_audio, SFX_POP, 2);
@@ -190,6 +190,7 @@ SnekcGame *snekc_game_new()
 	game->entity_list = 0;
 	game->player_head = 0;
 	game->player_next_velocity = vec2_zero();
+	game->prev_tail_position.x = game->prev_tail_position.y = -1;
 	return game;
 }
 
@@ -296,4 +297,9 @@ Vec2 snekc_game_size(SnekcGame *game)
 Entity *snekc_game_entity_list(SnekcGame *game)
 {
 	return game->entity_list;
+}
+
+Vec2 snekc_game_prev_tail_position(SnekcGame *game)
+{
+	return game->prev_tail_position;
 }

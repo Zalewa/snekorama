@@ -11,6 +11,7 @@ typedef struct _SnekcView SnekcView;
 SnekcView *snekc_view_new(struct Window *window);
 void snekc_view_free(SnekcView *);
 
+void snekc_view_clear(SnekcView *view);
 void snekc_view_drawgame(SnekcView *view, SnekcGame *game);
 
 #endif

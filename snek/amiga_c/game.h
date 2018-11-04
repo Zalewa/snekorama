@@ -52,5 +52,6 @@ GameState snekc_game_state(SnekcGame *game);
 long snekc_game_score(SnekcGame *game);
 Vec2 snekc_game_size(SnekcGame *game);
 Entity *snekc_game_entity_list(SnekcGame *game);
+Vec2 snekc_game_prev_tail_position(SnekcGame *game);
 
 #endif

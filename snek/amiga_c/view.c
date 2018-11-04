@@ -2,6 +2,7 @@
 
 #include "game.h"
 
+#include <graphics/gfxmacros.h>
 #include <proto/graphics.h>
 #include <proto/datatypes.h>
 #include <intuition/screens.h>
@@ -232,7 +233,6 @@ SnekcView *snekc_view_new(struct Window *window)
 	SnekcView *view = (SnekcView *) calloc(1, sizeof(SnekcView));
 	view->window = window;
 	view->score_buffer = (char*)malloc(256);
-	//view->window->WScreen->RastPort.Flags |= DBUFFER;
 	if (!init_colormap(view))
 		goto error;
 
@@ -265,19 +265,32 @@ void snekc_view_free(SnekcView *view)
 	free(view);
 }
 
+void snekc_view_clear(SnekcView *view)
+{
+	Move(view->window->RPort, 0, 0);
+	ClearScreen(view->window->RPort);
+	WaitTOF();
+}
+
 void snekc_view_drawgame(SnekcView *view, SnekcGame *game)
 {
-	/* Wait a bit if the previous frame has not finished drawing yet. */
-	WaitTOF();
 	Entity *entity = snekc_game_entity_list(game);
 	UBYTE depth;
-	struct BitMap *background = view->window->WScreen->RastPort.BitMap;
+	struct RastPort *rastport = view->window->RPort;
+	Vec2 clear_tile;
 
-	/* Clear background. */
-	for (depth = 0; depth < background->Depth; ++depth)
+	/* Clearing whole background is extremely inefficient and
+	   causes screen blinking. We cannot do that. We need to clear
+	   only the tiles that must be cleared.
+	*/
+	clear_tile = snekc_game_prev_tail_position(game);
+	if (clear_tile.x >= 0 && clear_tile.y >= 0)
 	{
-		PLANEPTR plane = background->Planes[depth];
-		BltClear(plane, background->BytesPerRow * background->Rows, 1);
+		BltBitMapRastPort(view->sprites.BitMap,
+			SPRITE_NOTHING.x, SPRITE_NOTHING.y,
+			rastport,
+			clear_tile.x * SPRITE_SIZE, clear_tile.y * SPRITE_SIZE,
+			SPRITE_SIZE, SPRITE_SIZE, 0xc0);
 	}
 
 	/* Draw each entity (player, apple, bricks). */
@@ -290,14 +303,19 @@ void snekc_view_drawgame(SnekcView *view, SnekcGame *game)
 		position.y = entity->position.y * SPRITE_SIZE;
 
 		BltBitMapRastPort(view->sprites.BitMap, sprite->x, sprite->y,
-			view->window->RPort, position.x, position.y,
+			rastport, position.x, position.y,
 			SPRITE_SIZE, SPRITE_SIZE, 0xc0);
 	}
 
 	/* Draw score text. */
 	view->score_value.LeftEdge =
 	view->score_label.LeftEdge = SPRITE_SIZE * (snekc_game_size(game).x + 1);
+	Move(rastport, view->score_value.LeftEdge, view->score_value.TopEdge + 6);
+	ClearEOL(rastport);
 
 	sprintf(view->score_buffer, "%d", snekc_game_score(game));
-	PrintIText(view->window->RPort, &view->score_label, 0, 0);
+	PrintIText(rastport, &view->score_label, 0, 0);
+
+	/* Wait until the frame finishes drawing. */
+	WaitTOF();
 }

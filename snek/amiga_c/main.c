@@ -99,7 +99,7 @@ static BOOL init_window()
 		WA_Height, g_amiscreen->Height,
 		WA_CustomScreen, g_amiscreen,
 		WA_IDCMP, IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS | IDCMP_RAWKEY,
-		WA_Flags, WFLG_CLOSEGADGET | WFLG_BORDERLESS | WFLG_RMBTRAP | WFLG_ACTIVATE,
+		WA_Flags, WFLG_CLOSEGADGET | WFLG_BORDERLESS | WFLG_RMBTRAP | WFLG_ACTIVATE | WFLG_GIMMEZEROZERO,
 		TAG_DONE);
 	if (!g_amiwindow)
 	{
@@ -332,8 +332,9 @@ static void destroy()
 		CloseScreen(g_amiscreen);
 }
 
-static void new_game(SnekcGame *game)
+static void new_game(SnekcView *view, SnekcGame *game)
 {
+	snekc_view_clear(view);
 	snekc_game_next_level(game, GAME_SIZE, NUM_BRICKS);
 }
 
@@ -361,7 +362,8 @@ static void handle_game_alive_event(SnekcGame *game, struct IntuiMessage *msg)
 	}
 }
 
-static void handle_game_dead_event(SnekcGame *game, struct IntuiMessage *msg)
+static void handle_game_dead_event(SnekcView *view, SnekcGame *game,
+	struct IntuiMessage *msg)
 {
 	switch (msg->Class)
 	{
@@ -370,19 +372,20 @@ static void handle_game_dead_event(SnekcGame *game, struct IntuiMessage *msg)
 		{
 		case KEY_ENTER:
 		case KEY_NUMPAD_RETURN:
-			new_game(game);
+			new_game(view, game);
 			break;
 		}
 		break;
 	}
 }
 
-static void handle_game_event(SnekcGame *game, struct IntuiMessage *msg)
+static void handle_game_event(SnekcView *view, SnekcGame *game,
+	struct IntuiMessage *msg)
 {
 	if (snekc_game_state(game) == STATE_ALIVE)
 		handle_game_alive_event(game, msg);
 	else
-		handle_game_dead_event(game, msg);
+		handle_game_dead_event(view, game, msg);
 }
 
 static BOOL handle_event(struct IntuiMessage *msg)
@@ -413,7 +416,7 @@ static void signals_timer()
 	send_timer_request();
 }
 
-static void signals_joystick(SnekcGame *game)
+static void signals_joystick(SnekcView *view, SnekcGame *game)
 {
 	while (GetMsg(m_msgport_joystick))
 	{
@@ -421,7 +424,7 @@ static void signals_joystick(SnekcGame *game)
 		if (snekc_game_state(game) == STATE_DEAD)
 		{
 			if (button == IECODE_LBUTTON)
-				new_game(game);
+				new_game(view, game);
 		}
 		else
 		{
@@ -450,7 +453,7 @@ static int run()
 	if (!view)
 		goto error;
 
-	new_game(game);
+	new_game(view, game);
 	while (g_quit == 0)
 	{
 		ULONG signals = Wait(g_timer_signal | g_window_signal | m_joystick_signal);
@@ -460,13 +463,13 @@ static int run()
 			while (msg = (struct IntuiMessage *) GetMsg(g_amiwindow->UserPort))
 			{
 				if (!handle_event(msg))
-					handle_game_event(game, msg);
+					handle_game_event(view, game, msg);
 				ReplyMsg((struct Message *) msg);
 			}
 		}
 		if (signals & m_joystick_signal)
 		{
-			signals_joystick(game);
+			signals_joystick(view, game);
 		}
 		if (signals & g_timer_signal)
 		{
