@@ -52,6 +52,7 @@ static void send_timer_request()
 {
 	g_timeval.tv_secs = 0;
 	g_timeval.tv_micro = TICK_PERIOD;
+	g_timer_io->tr_time = (struct timeval)g_timeval;
 	SendIO((struct IORequest *) g_timer_io);
 }
 
@@ -112,6 +113,7 @@ static BOOL init_window()
 		fprintf(stderr, "cannot create window\n");
 		return FALSE;
 	}
+	printf("window %dx%d\n", g_amiwindow->Width, g_amiwindow->Height);
 	g_window_signal = 1L << g_amiwindow->UserPort->mp_SigBit;
 	return TRUE;
 }
@@ -176,7 +178,6 @@ static BOOL init_timer()
 
 	g_timer_signal = 1L << g_msgport_timer->mp_SigBit;
 	g_timer_io->tr_node.io_Command = TR_ADDREQUEST;
-	g_timer_io->tr_time = (struct timeval)g_timeval;
 
 	send_timer_request();
 	g_timer_was_sent = TRUE;
@@ -323,7 +324,7 @@ static int run()
 {
 	int ec = 0;
 	SnekcGame *game = snekc_game_new();
-	SnekcView *view = snekc_view_new();
+	SnekcView *view = snekc_view_new(g_amiwindow);
 	unsigned next_tick = 0;
 
 	if (!view)
