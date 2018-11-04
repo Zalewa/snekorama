@@ -1,5 +1,6 @@
 /* Amiga includes */
 #include <proto/exec.h>
+#include <devices/gameport.h>
 #include <devices/timer.h>
 #include <intuition/intuition.h>
 #include <intuition/screens.h>
@@ -37,12 +38,20 @@ struct Screen *g_amiscreen = 0;
 struct Window *g_amiwindow = 0;
 ULONG g_window_signal;
 
+/* Timer stuff. */
 /* TODO Do we need this as g_? */
 BOOL g_timer_was_sent = FALSE;
 ULONG g_timer_signal;
 struct MsgPort *g_msgport_timer = NULL;
 struct timerequest *g_timer_io = NULL;
 struct timeval g_timeval;
+
+/* Joystick stuff. */
+static BOOL m_joystick_was_sent = FALSE;
+static ULONG m_joystick_signal;
+static struct MsgPort *m_msgport_joystick = NULL;
+static struct IOStdReq *m_joystick_io = NULL;
+static struct InputEvent m_joy_event;
 
 
 static void send_timer_request()
@@ -51,18 +60,6 @@ static void send_timer_request()
 	g_timeval.tv_micro = TICK_PERIOD;
 	g_timer_io->tr_time = (struct timeval)g_timeval;
 	SendIO((struct IORequest *) g_timer_io);
-}
-
-static void signals_timer()
-{
-	while (TRUE)
-	{
-		struct IntuiMessage *msg =
-			(struct IntuiMessage *) GetMsg(g_msgport_timer);
-		if (!msg)
-			break;
-	}
-	send_timer_request();
 }
 
 /**
@@ -151,6 +148,108 @@ static BOOL init_timer()
 	return TRUE;
 }
 
+static BYTE joy_get_controller_type()
+{
+	BYTE result;
+
+	m_joystick_io->io_Command = GPD_ASKCTYPE;
+	m_joystick_io->io_Flags = IOF_QUICK;
+	m_joystick_io->io_Data = (APTR)&result;
+	m_joystick_io->io_Length = 1;
+	DoIO((struct IORequest*)m_joystick_io);
+
+	return result;
+}
+
+static void joy_set_controller_type(BYTE type)
+{
+	BYTE data = type;
+	m_joystick_io->io_Command = GPD_SETCTYPE;
+	m_joystick_io->io_Flags = IOF_QUICK;
+	m_joystick_io->io_Data  = (APTR)&data;
+	m_joystick_io->io_Length = 1;
+	DoIO((struct IORequest*)m_joystick_io);
+}
+
+/**
+ * Set what kind of events we want to receive from the joystick
+ * and how we want to receive them.
+ */
+static void joy_set_trigger_conditions(void)
+{
+	struct GamePortTrigger gpt;
+	gpt.gpt_Keys = GPTF_DOWNKEYS;
+	gpt.gpt_Timeout = 0;
+	gpt.gpt_XDelta = 1;
+	gpt.gpt_YDelta = 1;
+	m_joystick_io->io_Command = GPD_SETTRIGGER;
+	m_joystick_io->io_Flags = IOF_QUICK;
+	m_joystick_io->io_Data = &gpt;
+	m_joystick_io->io_Length = (LONG)sizeof(struct GamePortTrigger);
+	DoIO((struct IORequest*)m_joystick_io);
+}
+
+/** There may be some residue data in the buffer, so let's clear it. */
+static void joy_clear_buffer(void)
+{
+	m_joystick_io->io_Command = CMD_CLEAR;
+	m_joystick_io->io_Flags = IOF_QUICK;
+	m_joystick_io->io_Data = NULL;
+	m_joystick_io->io_Length = 0;
+	DoIO((struct IORequest*)m_joystick_io);
+}
+
+static void joy_send_game_port_request(void)
+{
+	m_joystick_io->io_Command = GPD_READEVENT;
+	m_joystick_io->io_Flags = 0;
+	m_joystick_io->io_Data = &m_joy_event;
+	m_joystick_io->io_Length = (LONG)sizeof(struct InputEvent);
+	SendIO((struct IORequest*)m_joystick_io);
+}
+
+/** Acquire joystick (gameport). */
+static BOOL init_joystick()
+{
+	LONG error;
+
+	m_msgport_joystick = CreateMsgPort();
+	if (!m_msgport_joystick)
+	{
+		fprintf(stderr, "cannot create MsgPort for joystick\n");
+		return FALSE;
+	}
+	m_joystick_io = (struct IOStdReq*) CreateIORequest(m_msgport_joystick, sizeof(struct IOStdReq));
+	if (!m_joystick_io)
+	{
+		fprintf(stderr, "cannot create IO request for joystick\n");
+		return FALSE;
+	}
+
+	error = OpenDevice("gameport.device", 1,
+		(struct IORequest *)m_joystick_io, 0);
+	if (error)
+	{
+		fprintf(stderr, "cannot open gameport.device: %ld\n", error);
+		return FALSE;
+	}
+
+	m_joystick_signal = 1L << m_msgport_joystick->mp_SigBit;
+
+	Forbid();
+	BYTE type = joy_get_controller_type();
+	if (GPCT_NOCONTROLLER == type)
+		joy_set_controller_type(GPCT_ABSJOYSTICK);
+
+	Permit();
+	joy_set_trigger_conditions();
+	joy_clear_buffer();
+	joy_send_game_port_request();
+	m_joystick_was_sent = TRUE;
+
+	return TRUE;
+}
+
 /**
  * Acquire system-wide resources and prepare them to be
  * used by other routines of the program.
@@ -167,7 +266,23 @@ static BOOL init()
 		return FALSE;
 	if (!init_timer())
 		return FALSE;
+	if (!init_joystick())
+		return FALSE;
 	return TRUE;
+}
+
+/** AbortIO with WaitIO. */
+static void abort_io(struct IORequest *io)
+{
+	AbortIO(io);
+	WaitIO(io);
+}
+
+/** Releases a generic IORequest. */
+static void destroy_io(struct IORequest *io)
+{
+	CloseDevice(io);
+	DeleteIORequest(io);
 }
 
 /**
@@ -178,16 +293,26 @@ static void destroy_timer()
 	if (g_timer_io)
 	{
 		if (g_timer_was_sent)
-		{
-			AbortIO((struct IORequest *) g_timer_io);
-			WaitIO((struct IORequest *) g_timer_io);
-		}
-		CloseDevice((struct IORequest *) g_timer_io);
-		DeleteIORequest(g_timer_io);
+			abort_io((struct IORequest *)g_timer_io);
+		destroy_io((struct IORequest *)g_timer_io);
 	}
-
 	if (g_msgport_timer)
 		DeleteMsgPort(g_msgport_timer);
+}
+
+/** Release joystick (gameport). */
+static void destroy_joystick()
+{
+	if (m_joystick_io)
+	{
+		if (m_joystick_was_sent)
+			abort_io((struct IORequest *)m_joystick_io);
+		/* We need to set the type back to NOCONTROLLER. */
+		joy_set_controller_type(GPCT_NOCONTROLLER);
+		destroy_io((struct IORequest *)m_joystick_io);
+	}
+	if (m_msgport_joystick)
+		DeleteMsgPort(m_msgport_joystick);
 }
 
 /**
@@ -198,6 +323,7 @@ static void destroy_timer()
  */
 static void destroy()
 {
+	destroy_joystick();
 	destroy_timer();
 
 	if (g_amiwindow)
@@ -278,6 +404,42 @@ static BOOL handle_event(struct IntuiMessage *msg)
 	return FALSE;
 }
 
+static void signals_timer()
+{
+	while (GetMsg(g_msgport_timer))
+	{
+		/* Just drain the pool. */
+	}
+	send_timer_request();
+}
+
+static void signals_joystick(SnekcGame *game)
+{
+	while (GetMsg(m_msgport_joystick))
+	{
+		const UWORD button = m_joy_event.ie_Code;
+		if (snekc_game_state(game) == STATE_DEAD)
+		{
+			if (button == IECODE_LBUTTON)
+				new_game(game);
+		}
+		else
+		{
+			const WORD x = m_joy_event.ie_X;
+			const WORD y = m_joy_event.ie_Y;
+			if (x > 0)
+				snekc_game_change_direction(game, DIR_RIGHT);
+			else if (x < 0)
+				snekc_game_change_direction(game, DIR_LEFT);
+			if (y > 0)
+				snekc_game_change_direction(game, DIR_DOWN);
+			else if (y < 0)
+				snekc_game_change_direction(game, DIR_UP);
+		}
+	}
+	joy_send_game_port_request();
+}
+
 static int run()
 {
 	int ec = 0;
@@ -291,7 +453,7 @@ static int run()
 	new_game(game);
 	while (g_quit == 0)
 	{
-		ULONG signals = Wait(g_timer_signal | g_window_signal);
+		ULONG signals = Wait(g_timer_signal | g_window_signal | m_joystick_signal);
 		if (signals & g_window_signal)
 		{
 			struct IntuiMessage *msg;
@@ -301,6 +463,10 @@ static int run()
 					handle_game_event(game, msg);
 				ReplyMsg((struct Message *) msg);
 			}
+		}
+		if (signals & m_joystick_signal)
+		{
+			signals_joystick(game);
 		}
 		if (signals & g_timer_signal)
 		{
