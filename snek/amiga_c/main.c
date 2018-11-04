@@ -33,12 +33,9 @@ int g_quit = 0;
 #define KEY_ENTER 0x44
 #define KEY_NUMPAD_RETURN 0x43
 
-#define NUM_PENS 2
-
 struct Screen *g_amiscreen = 0;
 struct Window *g_amiwindow = 0;
 ULONG g_window_signal;
-ULONG g_pens[NUM_PENS];
 
 /* TODO Do we need this as g_? */
 BOOL g_timer_was_sent = FALSE;
@@ -74,11 +71,10 @@ static void signals_timer()
 static BOOL init_screen()
 {
 	struct NewScreen new_screen = {
-		0, 0, STDSCREENWIDTH, STDSCREENHEIGHT, 8, 0, 0,
+		0, 0, STDSCREENWIDTH, STDSCREENHEIGHT, 8, 0, 1,
 		HIRES, CUSTOMSCREEN | SCREENQUIET,
 		NULL, NULL, NULL, NULL
 	};
-
 	g_amiscreen = (struct Screen *) OpenScreen(&new_screen);
 	if (!g_amiscreen)
 	{
@@ -113,38 +109,8 @@ static BOOL init_window()
 		fprintf(stderr, "cannot create window\n");
 		return FALSE;
 	}
-	printf("window %dx%d\n", g_amiwindow->Width, g_amiwindow->Height);
 	g_window_signal = 1L << g_amiwindow->UserPort->mp_SigBit;
 	return TRUE;
-}
-
-/**
- * Set the color palette that will be used by the game to display
- * graphics.
- */
-static void init_colormap()
-{
-	typedef struct
-	{
-		ULONG red, green, blue;
-	} Color;
-	Color colors[NUM_PENS] = {
-		{0, 0, 0},
-		{0x7f, 0x7f, 0x7f}
-	};
-	struct ColorMap *colormap = g_amiwindow->WScreen->ViewPort.ColorMap;
-	int i;
-	for (i = 0; i < NUM_PENS; ++i)
-	{
-		ULONG red = (colors[i].red << 24) | 0xffffff;
-		ULONG green = (colors[i].green << 24) | 0xffffff;
-		ULONG blue = (colors[i].blue << 24) | 0xffffff;
-		ULONG pen = ObtainPen(colormap, 0xffffffff,
-			red, green, blue, PEN_EXCLUSIVE);
-		if ((ULONG)-1 == pen)
-			pen = ObtainBestPenA(colormap, red, green, blue, NULL);
-		g_pens[i] = pen;
-	}
 }
 
 /**
@@ -199,7 +165,6 @@ static BOOL init()
 		return FALSE;
 	if (!init_window())
 		return FALSE;
-	init_colormap();
 	if (!init_timer())
 		return FALSE;
 	return TRUE;
@@ -236,13 +201,7 @@ static void destroy()
 	destroy_timer();
 
 	if (g_amiwindow)
-	{
-		int i;
-		/* Release color map. */
-		for (i = 0; i < NUM_PENS; ++i)
-			ReleasePen(g_amiwindow->WScreen->ViewPort.ColorMap, g_pens[i]);
 		CloseWindow(g_amiwindow);
-	}
 	if (g_amiscreen)
 		CloseScreen(g_amiscreen);
 }
@@ -305,7 +264,6 @@ static BOOL handle_event(struct IntuiMessage *msg)
 	switch (msg->Class)
 	{
 	case IDCMP_RAWKEY:
-		printf("RAW KEY %d\n", msg->Code);
 		switch (msg->Code)
 		{
 		case KEY_ESC:
@@ -351,7 +309,6 @@ static int run()
 			snekc_view_drawgame(view, game);
 		}
 	}
-	printf("bailed: %d\n", g_quit);
 
 	goto end;
 error:
