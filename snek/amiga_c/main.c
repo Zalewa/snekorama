@@ -98,8 +98,8 @@ static BOOL init_window()
 		WA_Width, g_amiscreen->Width,
 		WA_Height, g_amiscreen->Height,
 		WA_CustomScreen, g_amiscreen,
-		WA_IDCMP, IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS | IDCMP_RAWKEY,
-		WA_Flags, WFLG_CLOSEGADGET | WFLG_BORDERLESS | WFLG_RMBTRAP | WFLG_ACTIVATE | WFLG_GIMMEZEROZERO,
+		WA_IDCMP, IDCMP_CLOSEWINDOW | IDCMP_RAWKEY,
+		WA_Flags, WFLG_BORDERLESS | WFLG_ACTIVATE,
 		TAG_DONE);
 	if (!g_amiwindow)
 	{
