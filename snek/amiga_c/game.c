@@ -28,7 +28,7 @@ Entity *entity_new()
 	entity->no = no++;
 	entity->position = vec2_zero();
 	entity->velocity = vec2_zero();
-	entity->identity = ID_BRICK;
+	entity->identity = SNEKID_BRICK;
 	return entity;
 }
 
@@ -80,13 +80,13 @@ void spawn_new_apple(SnekcGame *game)
 {
 	Entity *apple = entity_new();
 	apple->position = find_free_position(game);
-	apple->identity = ID_APPLE;
+	apple->identity = SNEKID_APPLE;
 	list_add(game->entity_list, apple);
 }
 
 int is_apple(Entity *entity)
 {
-	return entity->identity == ID_APPLE;
+	return entity->identity == SNEKID_APPLE;
 }
 
 void score(SnekcGame *game)
@@ -109,7 +109,7 @@ void move_player(SnekcGame *game, Vec2 newpos)
 	long actual_player_length = 1;
 
 	/* Add new tail chunk. */
-	tail->identity = ID_BODY;
+	tail->identity = SNEKID_BODY;
 	tail->position = head->position;
 	list_add(game->entity_list, tail);
 	tail = 0;
@@ -120,7 +120,7 @@ void move_player(SnekcGame *game, Vec2 newpos)
 	/* Remove excessive tail chunks. */
 	for (; entity; entity = (Entity*)entity->next)
 	{
-		if (entity->identity == ID_BODY)
+		if (entity->identity == SNEKID_BODY)
 		{
 			++actual_player_length;
 			if (!tail)
@@ -160,12 +160,12 @@ void advance_player(SnekcGame *game)
 	{
 		switch (collidee->identity)
 		{
-		case ID_BRICK:
-		case ID_BODY:
+		case SNEKID_BRICK:
+		case SNEKID_BODY:
 			snekc_audio_play(g_audio, SFX_SMASH, 1);
 			game->state = STATE_DEAD;
 			break;
-		case ID_APPLE:
+		case SNEKID_APPLE:
 			score(game);
 			move_player(game, newpos);
 			break;
@@ -245,7 +245,7 @@ void snekc_game_next_level(SnekcGame *game, Vec2 size, int num_bricks)
 	head = entity_new();
 	game->entity_list = head;
 	game->player_head = head;
-	head->identity = ID_HEAD;
+	head->identity = SNEKID_HEAD;
 	head->position.x = size.x / 2;
 	head->position.y = size.y / 2;
 
@@ -254,7 +254,7 @@ void snekc_game_next_level(SnekcGame *game, Vec2 size, int num_bricks)
 	{
 		Entity *brick = entity_new();
 		brick->position = find_free_position(game);
-		brick->identity = ID_BRICK;
+		brick->identity = SNEKID_BRICK;
 		list_add(game->entity_list, brick);
 	}
 
@@ -286,6 +286,11 @@ GameState snekc_game_state(SnekcGame *game)
 long snekc_game_score(SnekcGame *game)
 {
 	return game->score;
+}
+
+Vec2 snekc_game_size(SnekcGame *game)
+{
+	return game->size;
 }
 
 Entity *snekc_game_entity_list(SnekcGame *game)

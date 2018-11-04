@@ -63,6 +63,21 @@ static const Color colors[NUM_PENS] = {
 static const struct IntuiText m_score_value = {1, 0, JAM1, 0, 0, 0, "0", 0};
 static const struct IntuiText m_score_label = {1, 0, JAM1, 0, 0, 0, "Score:", 0};
 
+#define SPRITE_SIZE 16
+
+static const Vec2 SPRITE_BODY = {0, 0};
+static const Vec2 SPRITE_HEAD_UP = {SPRITE_SIZE, 0};
+static const Vec2 SPRITE_HEAD_DOWN = {SPRITE_SIZE * 3, SPRITE_SIZE};
+static const Vec2 SPRITE_HEAD_LEFT = {SPRITE_SIZE * 2, SPRITE_SIZE};
+static const Vec2 SPRITE_HEAD_RIGHT = {SPRITE_SIZE * 3, 0};
+static const Vec2 SPRITE_HEAD_DEAD_UP = {SPRITE_SIZE * 2, 0};
+static const Vec2 SPRITE_HEAD_DEAD_DOWN = {SPRITE_SIZE * 2, SPRITE_SIZE * 2};
+static const Vec2 SPRITE_HEAD_DEAD_LEFT = {SPRITE_SIZE * 1, SPRITE_SIZE * 2};
+static const Vec2 SPRITE_HEAD_DEAD_RIGHT = {0, SPRITE_SIZE * 2};
+static const Vec2 SPRITE_APPLE = {0, SPRITE_SIZE};
+static const Vec2 SPRITE_BRICK = {SPRITE_SIZE, SPRITE_SIZE};
+static const Vec2 SPRITE_NOTHING = {SPRITE_SIZE * 3, SPRITE_SIZE * 2};
+
 struct _SnekcView
 {
 	struct Window *window;
@@ -71,6 +86,48 @@ struct _SnekcView
 	struct RastPort sprites;
 	char *score_buffer;
 };
+
+static const Vec2 *entityid_to_sprite(SnekcGame *game, Entity *entity)
+{
+	switch (entity->identity)
+	{
+	case SNEKID_HEAD:
+	{
+		Vec2 v = entity->velocity;
+		if (snekc_game_state(game) == STATE_ALIVE)
+		{
+			if (v.y > 0)
+				return &SPRITE_HEAD_DOWN;
+			if (v.x < 0)
+				return &SPRITE_HEAD_LEFT;
+			if (v.x > 0)
+				return &SPRITE_HEAD_RIGHT;
+			return &SPRITE_HEAD_UP;
+		}
+		else
+		{
+			if (v.y > 0)
+				return &SPRITE_HEAD_DEAD_DOWN;
+			if (v.x < 0)
+				return &SPRITE_HEAD_DEAD_LEFT;
+			if (v.x > 0)
+				return &SPRITE_HEAD_DEAD_RIGHT;
+			return &SPRITE_HEAD_DEAD_UP;
+		}
+	}
+	case SNEKID_BRICK:
+		return &SPRITE_BRICK;
+	case SNEKID_BODY:
+		return &SPRITE_BODY;
+	case SNEKID_APPLE:
+		return &SPRITE_APPLE;
+	default:
+		/* If we can't handle the type, return the dead head
+		   to show that something is wrong. */
+		return &SPRITE_HEAD_DEAD_UP;
+	}
+	return &SPRITE_NOTHING;
+}
 
 /**
  * Set the color palette that will be used by the game to display
@@ -121,7 +178,7 @@ static BOOL load_bitmap(SnekcView *view, const char *name, struct RastPort *dst_
 	ULONG width, height, depth;
 	struct BitMap *bitmap, *alloc_bitmap;
 
-	/* Note: PDTA_Remap TRUE doesn't preserve all colors.
+	/* PDTA_Remap TRUE doesn't preserve all colors.
 	   It seems only the first 4 colors are used.
 	   I currently don't know why.
 
@@ -175,17 +232,17 @@ SnekcView *snekc_view_new(struct Window *window)
 	SnekcView *view = (SnekcView *) calloc(1, sizeof(SnekcView));
 	view->window = window;
 	view->score_buffer = (char*)malloc(256);
+	//view->window->WScreen->RastPort.Flags |= DBUFFER;
 	if (!init_colormap(view))
 		goto error;
 
 	view->score_label = m_score_label;
-	view->score_label.TopEdge = window->Height - 8;
+	view->score_label.TopEdge = 16;
 
 	sprintf(view->score_buffer, "0");
 	view->score_value = m_score_value;
 	view->score_value.IText = view->score_buffer;
-	view->score_value.TopEdge = view->score_label.TopEdge;
-	view->score_value.LeftEdge = IntuiTextLength(&view->score_label);
+	view->score_value.TopEdge = view->score_label.TopEdge + 8;
 
 	view->score_label.NextText = &view->score_value;
 
@@ -210,7 +267,37 @@ void snekc_view_free(SnekcView *view)
 
 void snekc_view_drawgame(SnekcView *view, SnekcGame *game)
 {
+	/* Wait a bit if the previous frame has not finished drawing yet. */
+	WaitTOF();
+	Entity *entity = snekc_game_entity_list(game);
+	UBYTE depth;
+	struct BitMap *background = view->window->WScreen->RastPort.BitMap;
+
+	/* Clear background. */
+	for (depth = 0; depth < background->Depth; ++depth)
+	{
+		PLANEPTR plane = background->Planes[depth];
+		BltClear(plane, background->BytesPerRow * background->Rows, 1);
+	}
+
+	/* Draw each entity (player, apple, bricks). */
+	for (; entity; entity = (Entity *)entity->next)
+	{
+		const Vec2 *sprite = entityid_to_sprite(game, entity);
+		Vec2 position;
+
+		position.x = entity->position.x * SPRITE_SIZE;
+		position.y = entity->position.y * SPRITE_SIZE;
+
+		BltBitMapRastPort(view->sprites.BitMap, sprite->x, sprite->y,
+			view->window->RPort, position.x, position.y,
+			SPRITE_SIZE, SPRITE_SIZE, 0xc0);
+	}
+
+	/* Draw score text. */
+	view->score_value.LeftEdge =
+	view->score_label.LeftEdge = SPRITE_SIZE * (snekc_game_size(game).x + 1);
+
 	sprintf(view->score_buffer, "%d", snekc_game_score(game));
-	BltBitMapRastPort(view->sprites.BitMap, 0, 0, view->window->RPort, 0, 0, 128, 64, 0xc0);
 	PrintIText(view->window->RPort, &view->score_label, 0, 0);
 }

@@ -14,11 +14,11 @@ typedef enum
 
 typedef enum
 {
-	ID_HEAD,
-	ID_BODY,
-	ID_BRICK,
-	ID_APPLE
-} Identity;
+	SNEKID_HEAD,
+	SNEKID_BODY,
+	SNEKID_BRICK,
+	SNEKID_APPLE
+} SnekIdentity;
 
 typedef enum
 {
@@ -32,7 +32,7 @@ typedef struct
 	long no;
 	Vec2 position;
 	Vec2 velocity;
-	Identity identity;
+	SnekIdentity identity;
 } Entity;
 
 Entity *entity_new();
@@ -50,6 +50,7 @@ void snekc_game_tick(SnekcGame *game);
 
 GameState snekc_game_state(SnekcGame *game);
 long snekc_game_score(SnekcGame *game);
+Vec2 snekc_game_size(SnekcGame *game);
 Entity *snekc_game_entity_list(SnekcGame *game);
 
 #endif

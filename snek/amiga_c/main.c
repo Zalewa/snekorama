@@ -97,9 +97,9 @@ static BOOL init_window()
 		return FALSE;
 	}
 	g_amiwindow = (struct Window *) OpenWindowTags(NULL,
-		WA_Left, 60, WA_Top, 60,
-		WA_Width, g_amiscreen->Width - 120,
-		WA_Height, g_amiscreen->Height - 120,
+		WA_Left, 0, WA_Top, 0,
+		WA_Width, g_amiscreen->Width,
+		WA_Height, g_amiscreen->Height,
 		WA_CustomScreen, g_amiscreen,
 		WA_IDCMP, IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS | IDCMP_RAWKEY,
 		WA_Flags, WFLG_CLOSEGADGET | WFLG_BORDERLESS | WFLG_RMBTRAP | WFLG_ACTIVATE,
