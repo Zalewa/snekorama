@@ -1,0 +1,16 @@
+This file contains observations acquired during development
+of this program for the Amiga platform.
+
+
+m68k-amigaos-gcc version 3.4.0
+==============================
+
+- calloc(1, sizeof(struct a_struct)) will cause a system-wide
+  crash on a subsequent free() if the struct is empty.
+
+
+Other
+=====
+
+AmigaOS game programming course (Polish only):
+https://www.ppa.pl/programy/nasza-pierwsza-gra-kurs-programowania-amigaos-i-c-czesc-1.html
