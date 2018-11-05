@@ -269,6 +269,9 @@ static BOOL init()
 		return FALSE;
 	if (!init_joystick())
 		return FALSE;
+	g_audio = snekc_audio_new();
+	if (!g_audio)
+		return FALSE;
 	return TRUE;
 }
 
@@ -324,6 +327,8 @@ static void destroy_joystick()
  */
 static void destroy()
 {
+	if (g_audio)
+		snekc_audio_free(g_audio);
 	destroy_joystick();
 	destroy_timer();
 

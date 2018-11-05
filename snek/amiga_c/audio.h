@@ -8,9 +8,11 @@ extern SnekcAudio *g_audio;
 
 typedef enum
 {
-	SFX_POP,
+	SFX_POP = 0,
 	SFX_SCORE,
-	SFX_SMASH
+	SFX_SMASH,
+
+	NUM_SFX
 } SnekcSfx;
 
 SnekcAudio *snekc_audio_new();
