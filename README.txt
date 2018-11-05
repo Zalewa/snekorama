@@ -71,3 +71,7 @@ Copyright mentions:
 
 - cmake/Modules/FindSDL2*.cmake - BSD License
   Copyright details mentioned in the files themselves.
+
+- snek/amiga_c/ - portions of the C code presented here are based
+  on the very helpful Amiga programming tutorials by Asman available at
+  https://www.ppa.pl/programy/nasza-pierwsza-gra-kurs-programowania-amigaos-i-c-czesc-1.html
