@@ -86,6 +86,7 @@ struct _SnekcView
 	struct IntuiText score_value;
 	struct RastPort sprites;
 	char *score_buffer;
+	long prev_score;
 };
 
 static const Vec2 *entityid_to_sprite(SnekcGame *game, Entity *entity)
@@ -234,6 +235,7 @@ SnekcView *snekc_view_new(struct Window *window)
 	SnekcView *view = (SnekcView *) calloc(1, sizeof(SnekcView));
 	view->window = window;
 	view->score_buffer = (char*)malloc(256);
+	view->prev_score = -1;
 	if (!init_colormap(view))
 		goto error;
 
@@ -268,6 +270,7 @@ void snekc_view_free(SnekcView *view)
 
 void snekc_view_clear(SnekcView *view)
 {
+	view->prev_score = -1;
 	Move(view->window->RPort, 0, 0);
 	ClearScreen(view->window->RPort);
 	WaitTOF();
@@ -308,14 +311,18 @@ void snekc_view_drawgame(SnekcView *view, SnekcGame *game)
 			SPRITE_SIZE, SPRITE_SIZE, 0xc0);
 	}
 
-	/* Draw score text. */
-	view->score_value.LeftEdge =
-	view->score_label.LeftEdge = SPRITE_SIZE * (snekc_game_size(game).x + 1);
-	Move(rastport, view->score_value.LeftEdge, view->score_value.TopEdge + 6);
-	ClearEOL(rastport);
+	/* Draw score text, but only if score changes from last draw. */
+	if (view->prev_score != snekc_game_score(game))
+	{
+		view->prev_score = snekc_game_score(game);
+		view->score_value.LeftEdge =
+			view->score_label.LeftEdge = SPRITE_SIZE * (snekc_game_size(game).x + 1);
+		Move(rastport, view->score_value.LeftEdge, view->score_value.TopEdge + 6);
+		ClearEOL(rastport);
 
-	sprintf(view->score_buffer, "%d", snekc_game_score(game));
-	PrintIText(rastport, &view->score_label, 0, 0);
+		sprintf(view->score_buffer, "%d", view->prev_score);
+		PrintIText(rastport, &view->score_label, 0, 0);
+	}
 
 	/* Wait until the frame finishes drawing. */
 	WaitTOF();
