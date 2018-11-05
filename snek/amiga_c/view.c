@@ -144,13 +144,14 @@ static BOOL init_colormap(SnekcView *view)
 		ULONG red = (colors[i].red << 24) | 0xffffff;
 		ULONG green = (colors[i].green << 24) | 0xffffff;
 		ULONG blue = (colors[i].blue << 24) | 0xffffff;
+		ULONG pen;
 
 		/* This is mandatory to properly display the graphics. */
 		SetRGB32(&view->window->WScreen->ViewPort, i, red, green, blue);
 
 		/* ObtainPen function always fails on a custom screen.
 		   I don't know why. */
-		ULONG pen = ObtainPen(colormap, i,
+		pen = ObtainPen(colormap, i,
 			red,
 			green,
 			blue, PEN_EXCLUSIVE);

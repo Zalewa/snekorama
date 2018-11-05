@@ -212,6 +212,7 @@ static void joy_send_game_port_request(void)
 static BOOL init_joystick()
 {
 	LONG error;
+	BYTE controller_type;
 
 	m_msgport_joystick = CreateMsgPort();
 	if (!m_msgport_joystick)
@@ -237,8 +238,8 @@ static BOOL init_joystick()
 	m_joystick_signal = 1L << m_msgport_joystick->mp_SigBit;
 
 	Forbid();
-	BYTE type = joy_get_controller_type();
-	if (GPCT_NOCONTROLLER == type)
+	controller_type = joy_get_controller_type();
+	if (GPCT_NOCONTROLLER == controller_type)
 		joy_set_controller_type(GPCT_ABSJOYSTICK);
 
 	Permit();
