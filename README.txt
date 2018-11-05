@@ -66,7 +66,7 @@ Copyright mentions:
 - assets/score.bmp, assets/digits.bmp - uses DejaVu Sans fonts
   https://dejavu-fonts.github.io/License.html
 
-- assets/smash.wav - CC BY-SA 3.0 (c) pfranzen
+- assets/smash.wav, assets/smash.8svx - CC BY-SA 3.0 (c) pfranzen
   https://freesound.org/people/pfranzen/sounds/377157/
 
 - cmake/Modules/FindSDL2*.cmake - BSD License
