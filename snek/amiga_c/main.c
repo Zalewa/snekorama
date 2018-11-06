@@ -58,7 +58,7 @@ static void send_timer_request()
 {
 	g_timeval.tv_secs = 0;
 	g_timeval.tv_micro = TICK_PERIOD;
-	g_timer_io->tr_time = (struct timeval)g_timeval;
+	g_timer_io->tr_time = g_timeval;
 	SendIO((struct IORequest *) g_timer_io);
 }
 
