@@ -14,3 +14,18 @@ Other
 
 AmigaOS game programming course (Polish only):
 https://www.ppa.pl/programy/nasza-pierwsza-gra-kurs-programowania-amigaos-i-c-czesc-1.html
+
+
+WAV files can be converted to 8svx by using wav28svx software.
+See here:
+  http://bgafc.t-hosting.hu/prgv.php?p=1
+  http://eab.abime.net/showthread.php?t=73557
+The 8svx files can then be played back with Play16, but DataTypes API
+seems to have problems with opening them if the SFX is short but has
+a high sample rate. To omit this problem, open the WAV file in Audacity
+and downsample to 8KHz or something, then in wav28svx force the same
+sample rate with '-sr=8000' argument.
+
+
+Play16 is available on Aminet:
+http://aminet.net/package/mus/play/Play16
