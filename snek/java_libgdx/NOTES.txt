@@ -1,0 +1,39 @@
+Java / LibGDX has proven to be a very easy implementation that was
+completed in just a few hours. There were no problems whatsoever and
+almost whole time was spent on writing code seamlessly. I didn't need to
+stop to figure out any blocking problems as there weren't any.
+
+Because FreeType support is basically given for free in LibGDX,
+I'm using the DejaVu TTF font to print text instead of the bitmap
+sprites. It was, however, difficult to figure out how to scale the
+text down to fit into a specific rect. It should be noted, though, that
+this project doesn't fully utilize the capabilities of LibGDX and I also
+did not want to spend more time to solve this problem.
+
+This implementation uses a rather naive approach to actor definition.
+Instead of using the Engine / Entity / Behavior pattern, it uses the
+oldschool "Actor" base class with static and ugly type checking and
+inheritance. I would not develop a real game in such way.
+
+
+Summary
+-------
+
+Java / LibGDX pros:
+
++ Java makes it possible to use a magnificent IDE that greatly
+  helps with coding. I actually think that this is the biggest
+  advantage here.
+
++ Java removes the need to worry about freeing objects from memory.
+
++ LibGDX is an excellent framework that solves all menial problems.
+
+Java / LibGDX cons:
+
+- The runtime is the JVM, which sucks for the end-user.
+
+- Had to copy all assets to the assets/ dir, where LibGDX will
+  look for them. The assets are now duplicated. This problem
+  could possibly be solved but I did not want to escape from
+  the project's root directory.
